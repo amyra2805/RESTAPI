@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <title>Products Manager (Add / Edit / Delete)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -16,6 +16,10 @@
         text-align: left;
         padding: 0.75rem;
         border-bottom: 1px solid #e5e7eb;
+      }
+      table th {
+        font-weight: 600;
+        color: #6b7280;
       }
       .toast-container {
         position: fixed;
@@ -35,11 +39,18 @@
         font-weight: 600;
         color: white;
         transform-origin: top right;
-        transition: transform 180ms ease, opacity 180ms ease;
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+        transition: transform 180ms ease-out, opacity 180ms ease-out;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0) scale(1);
       }
       .toast.hide {
         opacity: 0;
         transform: translateY(-6px) scale(0.98);
+        transition: opacity 120ms ease-in, transform 120ms ease-in;
       }
       .toast.success {
         background: linear-gradient(90deg, #059669, #10b981);
@@ -63,11 +74,14 @@
       }
     </style>
   </head>
-  <body class="p-6">
+  <body class="min-h-screen grid gap-6 p-6 bg-[#f5f7fb] text-gray-900">
     <!-- Topbar -->
-    <div class="flex justify-between items-center mb-4">
-      <div class="text-xl font-semibold">Restful-API</div>
-      <div class="flex gap-2">
+    <div class="grid grid-cols-1 sm:grid-cols-2 items-center gap-4 mb-4">
+      <!--tailwind grid-->
+      <div class="text-xl font-semibold text-center sm:text-left">
+        Restful-API
+      </div>
+      <div class="flex justify-center sm:justify-end gap-2">
         <button
           id="loadBtn"
           class="px-3 py-1 rounded border bg-white hover:bg-gray-50"
@@ -84,18 +98,22 @@
     </div>
 
     <!-- Table Card -->
-    <div class="bg-white rounded-lg shadow p-4">
-      <table class="w-full">
-        <thead>
-          <tr>
-            <th class="w-1/6">ID</th>
-            <th>Product</th>
-            <th class="w-1/5">Action</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
+    <section class="grid grid-cols-1">
+      <h2 class="text-lg font-semibold mb-4">Products</h2>
+      <div class="bg-white rounded-lg shadow p-4 overflow-x-auto">
+        <!--mobile responsive: table scroll horizontally-->
+        <table class="min-w-full text-sm:text-base">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="w-1/6 p-2 sm:p-3">ID</th>
+              <th class="w-3/6 p-2 sm:p-3">PRODUCT</th>
+              <th class="w-2/6 p-2 sm:p-3">ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
 
     <!-- Add/Edit Modal -->
     <div id="productModalBackdrop" class="modal-backdrop">
@@ -176,7 +194,9 @@
       const addBtn = document.getElementById("addBtn");
       const tableBody = document.getElementById("tableBody");
 
-      const productModalBackdrop = document.getElementById("productModalBackdrop");
+      const productModalBackdrop = document.getElementById(
+        "productModalBackdrop"
+      );
       const modalTitle = document.getElementById("modalTitle");
       const modalForm = document.getElementById("modalForm");
       const productName = document.getElementById("productName");
@@ -195,19 +215,25 @@
       let editingId = null;
       let deleteId = null;
 
-      const showToast = (msg, type = "success", duration = 3000) => { //toast remain visible for 3 seconds
+      const showToast = (msg, type = "success", duration = 3000) => {
+        //toast remain visible for 3 seconds
         const toast = document.createElement("div");
         toast.className = "toast " + (type === "error" ? "error" : "success");
         toast.textContent = msg;
         toastContainer.appendChild(toast);
+
+        //start animation to fade in
+        requestAnimationFrame(() => {
+          toast.classList.add("show");
+        });
         toastContainer.setAttribute("aria-hidden", "false");
         setTimeout(() => {
           toast.classList.add("hide");
           setTimeout(() => {
-            toast.remove(); //remove from DOM because it is a temporary UI element and to not slow down the page 
+            toast.remove(), 150; //remove from DOM because it is a temporary UI element and to not slow down the page
             if (!toastContainer.children.length)
               toastContainer.setAttribute("aria-hidden", "true");
-          }, 180);
+          }, 2000);
         }, duration);
       };
 
@@ -241,9 +267,9 @@
           tr.innerHTML = `
           <td>${escapeHtml(item.id)}</td>
           <td><strong>${escapeHtml(item.name)}</strong></td>
-          <td class="flex gap-2">
-            <button class="px-2 py-1 border rounded text-purple-600 editBtn">Edit</button>
-            <button class="px-2 py-1 border rounded text-red-600 deleteBtn">Delete</button>
+          <td class="space gap-2">
+            <button class="px-2 py-1 border rounded text-purple-600 hover:bg-purple-600 hover:text-white editBtn">Edit</button>
+            <button class="px-2 py-1 border rounded text-red-600 hover:bg-red-600 hover:text-white deleteBtn">Delete</button>
           </td>`;
           tr.querySelector(".editBtn").addEventListener("click", () =>
             openModalForEdit(item.id, item.name)
@@ -334,12 +360,12 @@
             if (!res.ok) throw new Error(res.status);
             const data = await res.json();
             const local = getLocal();
-            local.unshift({ id: String(data.id), name: data.name || name });
+            local.push({ id: String(data.id), name: data.name || name });
             setLocal(local);
             showToast("Product created");
           } catch {
             const local = getLocal();
-            local.unshift({ id: "local-" + Date.now(), name });
+            local.push({ id: "local-" + Date.now(), name });
             setLocal(local);
             showToast("Saved locally", "error");
           } finally {
@@ -384,7 +410,8 @@
       const handleDelete = async () => {
         if (!deleteId) return;
         try {
-          const res = await fetch(`${apiURL}/${encodeURIComponent(deleteId)}`, {   //encodeURIComponent(deleteId) ensures the ID is safely formatted for use in a URL converts special characters, spaces, and certain reserved characters into a sequence of safe characters that web servers can correctly interpret.
+          const res = await fetch(`${apiURL}/${encodeURIComponent(deleteId)}`, {
+            //encodeURIComponent(deleteId) ensures the ID is safely formatted for use in a URL converts special characters, spaces, and certain reserved characters into a sequence of safe characters that web servers can correctly interpret.
             method: "DELETE",
           });
           if (!res.ok) throw new Error(res.status);
@@ -393,7 +420,7 @@
           showToast("Delete Failed", "error");
         } finally {
           const local = getLocal().filter((it) => it.id !== deleteId); //creates a new array of local products (it) that excludes the item with the deleted ID.
-          setLocal(local); //update localstorage to the new array 
+          setLocal(local); //update localstorage to the new array
           hideConfirmDelete();
           loadProducts();
         }
